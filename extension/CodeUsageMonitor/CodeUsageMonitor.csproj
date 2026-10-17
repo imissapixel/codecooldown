@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>CodeUsageMonitor</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <WindowsSdkPackageVersion>10.0.26100.68-preview</WindowsSdkPackageVersion>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishTrimmed>false</PublishTrimmed>
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\helper\**\*.py" Link="Helper\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Manifest Include="$(ApplicationManifest)" />
+    <ProjectCapability Include="Msix" />
+    <PackageReference Include="Microsoft.CommandPalette.Extensions" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" />
+    <PackageReference Include="Shmuelie.WinRTServer" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX" PrivateAssets="all" />
+  </ItemGroup>
+  <!-- This extension has no XAML or project resources. Toolkit resources ship in their own PRI. -->
+  <Target Name="SkipUnusedProjectPri" AfterTargets="AddProjectPriToResolvedFileToPublish" Condition="'$(AppxGeneratePriEnabled)' == 'false'">
+    <ItemGroup><ResolvedFileToPublish Remove="$(ProjectPriFullPath)" /></ItemGroup>
+  </Target>
+</Project>

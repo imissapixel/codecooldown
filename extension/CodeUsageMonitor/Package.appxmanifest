@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+ xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+ xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+ xmlns:uap4="http://schemas.microsoft.com/appx/manifest/uap/windows10/4"
+ xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+ xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+ IgnorableNamespaces="uap uap3 uap4 com rescap">
+ <Identity Name="CodeUsageMonitor" Publisher="CN=CodeUsageMonitor" Version="0.1.0.0" ProcessorArchitecture="x64" />
+ <Properties><DisplayName>Code Cooldown</DisplayName><PublisherDisplayName>Code Cooldown</PublisherDisplayName><Logo>Assets\StoreLogo.png</Logo></Properties>
+ <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
+ <Resources><Resource Language="en-us" /></Resources>
+ <Applications>
+  <Application Id="App" Executable="CodeUsageMonitor.exe" EntryPoint="Windows.FullTrustApplication">
+   <uap:VisualElements AppListEntry="none" DisplayName="Code Cooldown" Description="Claude Code and Codex subscription usage from WSL" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.scale-200.png" Square44x44Logo="Assets\Square44x44Logo.scale-200.png" />
+   <Extensions>
+    <uap4:Extension Category="windows.sharedFonts"><uap4:SharedFonts>
+     <uap4:Font File="Assets\UsageMeter.ttf" />
+     <uap4:Font File="Assets\UsageMeter.Single.ttf" />
+    </uap4:SharedFonts></uap4:Extension>
+    <com:Extension Category="windows.comServer"><com:ComServer><com:ExeServer Executable="CodeUsageMonitor.exe" Arguments="-RegisterProcessAsComServer" DisplayName="Code Cooldown"><com:Class Id="9b729ea6-1b68-48ee-90ef-91215f4165ea" DisplayName="Code Cooldown" /></com:ExeServer></com:ComServer></com:Extension>
+    <uap3:Extension Category="windows.appExtension"><uap3:AppExtension Name="com.microsoft.commandpalette" Id="CodeUsageMonitor" PublicFolder="Public" DisplayName="Code Cooldown" Description="Claude, Codex and cloud usage"><uap3:Properties><CmdPalProvider><Activation><CreateInstance ClassId="9b729ea6-1b68-48ee-90ef-91215f4165ea" /></Activation><SupportedInterfaces><Commands /></SupportedInterfaces></CmdPalProvider></uap3:Properties></uap3:AppExtension></uap3:Extension>
+   </Extensions>
+  </Application>
+ </Applications>
+ <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
+</Package>

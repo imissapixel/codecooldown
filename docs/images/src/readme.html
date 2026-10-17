@@ -1,0 +1,207 @@
+<!doctype html>
+<!-- Source for the README infographics. Rendered by render.py with headless Chrome,
+     using the same bundled meter fonts and glyph logic as the extension. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Code Cooldown infographics</title>
+<script src="marks.js"></script>
+<style>
+  @font-face { font-family: Meter; src: url("../../../extension/CodeUsageMonitor/Assets/UsageMeter.ttf"); }
+  @font-face { font-family: MeterSingle; src: url("../../../extension/CodeUsageMonitor/Assets/UsageMeter.Single.ttf"); }
+  @font-face { font-family: UI; src: local("Segoe UI Variable Text"), local("Segoe UI"), url("file:///mnt/c/Windows/Fonts/SegUIVar.ttf"); }
+  :root {
+    --bg: #0b0b0e; --card: #141419; --line: #26262e; --text: #ececf1; --muted: #9a9aa8;
+    --leader: #5d5d6b; --blue: #6cb8ff; --dock: #000;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); font-family: UI, "Segoe UI", system-ui, sans-serif; color: var(--text); padding: 24px; }
+  .panel { width: 1200px; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 36px 44px 40px; margin-bottom: 24px; }
+  .panel h2 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+  .panel p.lead { color: var(--muted); font-size: 17px; margin-top: 6px; max-width: 900px; line-height: 1.45; }
+  .stage { position: relative; margin-top: 30px; }
+  .meter { display: inline-block; width: 5em; height: 1.925em; line-height: 1.925; font-family: Meter; white-space: nowrap; vertical-align: top; }
+  .meter.single { font-family: MeterSingle; height: 0.925em; line-height: 0.925; margin-top: 0.5em; }
+  .profile { display: inline-flex; align-items: center; gap: 0.45em; font-size: 15px; vertical-align: top; }
+  .profile img { width: 1.25em; height: 1.25em; }
+  .dockbar { background: var(--dock); border-radius: 12px; padding: 14px 28px; display: inline-flex; gap: 46px; align-items: center; border: 1px solid #1c1c22; }
+  .item { display: flex; align-items: center; gap: 14px; }
+  .item .name { display: flex; align-items: center; gap: 9px; font-size: 19px; }
+  .item .name img { width: 22px; height: 22px; }
+  .label { position: absolute; font-size: 15px; line-height: 1.35; color: var(--text); white-space: nowrap; }
+  .label small { display: block; color: var(--muted); font-size: 13.5px; }
+  .label.blue b { color: var(--blue); }
+  svg.leaders { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+  .row { display: flex; gap: 34px; align-items: flex-start; }
+  .cell { flex: 1; background: #101015; border: 1px solid #202028; border-radius: 14px; padding: 22px 22px 20px; }
+  .cell .caption { margin-top: 16px; font-size: 15px; line-height: 1.4; }
+  .cell .caption small { display: block; color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+  .pill { display: table; font-size: 12.5px; padding: 2px 9px; border-radius: 99px; background: #23232b; color: var(--muted); margin-bottom: 12px; }
+  .tooltip { background: #2b2b2b; border: 1px solid #3a3a3a; border-radius: 7px; padding: 9px 12px; font-size: 14px; line-height: 1.5; box-shadow: 0 6px 18px rgba(0,0,0,.45); display: inline-block; }
+  .arrow { font-size: 28px; color: var(--muted); align-self: center; }
+  .legend { display: flex; gap: 22px; margin-top: 26px; color: var(--muted); font-size: 14px; flex-wrap: wrap; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; background: var(--c); }
+</style>
+</head>
+<body>
+
+<section class="panel" id="dock">
+  <h2>Your subscription limits, always on screen</h2>
+  <p class="lead">One compact meter per Claude Code and Codex account in the PowerToys dock. Hover any meter for exact numbers.</p>
+  <div class="stage">
+    <div class="dockbar" id="dockbar"></div>
+  </div>
+</section>
+
+<section class="panel" id="anatomy">
+  <h2>Anatomy of a meter</h2>
+  <p class="lead">Two rows, five cells each. Colour shows allowance left; the thin blue strip shows time until it resets.</p>
+  <div class="stage" style="height: 330px;" data-meter-at="430,95" data-size="68"
+       data-state='{"short":62,"weekly":70,"shortH":2.5,"weeklyD":3.5}'></div>
+</section>
+
+<section class="panel" id="colors">
+  <h2>5-hour colour follows the cells left</h2>
+  <p class="lead">The 5-hour fill shifts from green to red as you spend it. Weekly allowance is always white.</p>
+  <div class="stage row" id="colorRow" style="gap: 16px"></div>
+</section>
+
+<section class="panel" id="pacing">
+  <h2>Pacing at a glance</h2>
+  <p class="lead">Fill and strip use the same scale. Compare where each one ends.</p>
+  <div class="stage row">
+    <div class="cell"><span class="pill">On pace</span><div class="m" data-size="44" data-state='{"short":70,"weekly":80,"shortH":2.4,"weeklyD":4.3}'></div>
+      <div class="caption">Allowance reaches past the strip<small>You have more allowance left than time. Keep going.</small></div></div>
+    <div class="cell"><span class="pill">Spending fast</span><div class="m" data-size="44" data-state='{"short":30,"weekly":80,"shortH":3.6,"weeklyD":4.3}'></div>
+      <div class="caption">Strip reaches past the allowance<small>At this rate you run out before the reset.</small></div></div>
+  </div>
+</section>
+
+<section class="panel" id="zoom">
+  <h2>The last 20% zooms in</h2>
+  <p class="lead">When only one 5-hour cell is left, the top row becomes a single bar for that final 20%, and refresh tightens to every 3 minutes.</p>
+  <div class="stage row">
+    <div class="cell"><span class="pill">35% left</span><div class="m" data-size="44" data-state='{"short":35,"weekly":60,"shortH":3.3,"weeklyD":2.6}'></div>
+      <div class="caption">Normal view<small>Two cells left, refresh every 5 minutes.</small></div></div>
+    <div class="arrow">→</div>
+    <div class="cell"><span class="pill">12% left</span><div class="m" data-size="44" data-state='{"short":12,"weekly":60,"shortH":1.5,"weeklyD":2.6}'></div>
+      <div class="caption">Zoomed view<small>The top bar now spans the last 20%: 12% fills 60% of it.</small></div></div>
+  </div>
+</section>
+
+<section class="panel" id="cooldown">
+  <h2>Used up? The meter becomes a countdown</h2>
+  <p class="lead">An exhausted window collapses to a single blue bar showing when the allowance comes back.</p>
+  <div class="stage row">
+    <div class="cell"><span class="pill">5-hour used up</span><div class="m" data-size="44" data-state='{"short":0,"weekly":55,"shortH":2.67,"weeklyD":3}'></div>
+      <div class="caption">1 cell = 1 hour<small>2h40m until the 5-hour allowance returns.</small></div></div>
+    <div class="cell"><span class="pill">Weekly used up</span><div class="m" data-size="44" data-state='{"short":60,"weekly":0,"shortH":2,"weeklyD":3.17}'></div>
+      <div class="caption">1 cell = 1 day<small>3 days 4 hours until the weekly reset.</small></div></div>
+    <div class="cell"><span class="pill">Final 24 hours</span><div class="m" data-size="44" data-state='{"short":60,"weekly":0,"shortH":2,"weeklyD":0.375}'></div>
+      <div class="caption">Zooms into the last day<small>9 hours to go: the bar shows 9 of 24.</small></div></div>
+  </div>
+</section>
+
+<section class="panel" id="states">
+  <h2>Hover for details, and never a blank meter</h2>
+  <p class="lead">Tooltips keep it short. If a refresh fails, the last reading stays up and the tooltip says how old it is.</p>
+  <div class="stage row">
+    <div class="cell"><span class="pill">Hover</span>
+      <div class="profile"><img src="../../../extension/CodeUsageMonitor/Assets/Claude.svg" alt="">Claude</div>
+      <div style="margin-top:14px"><div class="m" data-size="40" data-state='{"short":19,"weekly":70,"shortH":2.13,"weeklyD":5.8}'></div></div>
+      <div class="tooltip" style="margin-top:14px">Claude<br>5h: 19% left · resets in 2h8m<br>Weekly: 70% left · resets in 5d20h</div></div>
+    <div class="cell"><span class="pill">Refresh failed</span>
+      <div class="profile"><img src="../../../extension/CodeUsageMonitor/Assets/Codex.svg" alt="">Codex</div>
+      <div style="margin-top:14px"><div class="m" data-size="40" data-state='{"short":48,"weekly":66,"shortH":3.4,"weeklyD":2.6}'></div></div>
+      <div class="tooltip" style="margin-top:14px">Codex<br>Stale · updated 14:02<br>5h: 48% left · resets in 3h24m</div></div>
+    <div class="cell"><span class="pill">Never loaded</span>
+      <div class="profile"><img src="../../../extension/CodeUsageMonitor/Assets/Claude.svg" alt="">Claude</div>
+      <div style="margin-top:14px"><div class="m" data-size="40" data-state='{"short":null,"weekly":null}'></div></div>
+      <div class="caption">Question marks<small>Shown only until the first successful refresh. Sign in with the CLI if it persists.</small></div></div>
+  </div>
+</section>
+
+<script>
+const STEPS = 72, UNKNOWN = 101;
+const BASE = 0xE000, ZOOM = 0xEA00, RESET = 0xE800, HOURS = 0xE900, SHORT_HOURS = 0xEA00;
+const ch = c => String.fromCharCode(c);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const strip = (left, windowLen, row) => left > 0 ? MARKS[row * STEPS + clamp(Math.ceil(left / windowLen * STEPS), 1, STEPS) - 1] : "";
+
+// Mirrors MeterGlyph.Create for the "remaining" display. Percentages are allowance left.
+function glyph({ short, weekly, shortH = null, weeklyD = null }) {
+  if (weekly === 0) {
+    const h = weeklyD * 24;
+    return { text: ch(h < 24 ? RESET + clamp(Math.round(h / 24 * 100), 1, 100) : HOURS + Math.min(120, Math.ceil(h))), single: true };
+  }
+  if (short === 0) return { text: ch(SHORT_HOURS + clamp(Math.ceil(shortH * 60 / 2.5), 0, 120)), single: true };
+  let base;
+  if (short === null) base = BASE + UNKNOWN;
+  else if (short <= 20) base = ZOOM + clamp(Math.round(short * 5), 1, 100);
+  else base = BASE + clamp(Math.ceil(short / 20) - 1, 0, 4) * 102 + Math.ceil(short);
+  let text = ch(base) + (weekly === null ? MARKS[STEPS * 2 + UNKNOWN] : MARKS[STEPS * 2 + Math.ceil(weekly)]);
+  if (short !== null && shortH !== null) text += strip(shortH, 5, 0);
+  if (weekly !== null && weeklyD !== null) text += strip(weeklyD, 5, 1);
+  return { text, single: false };
+}
+function meter(state, size) {
+  const g = glyph(state), el = document.createElement("span");
+  el.className = "meter" + (g.single ? " single" : "");
+  el.style.fontSize = size + "px";
+  el.textContent = g.text;
+  return el;
+}
+document.querySelectorAll(".m").forEach(m => m.appendChild(meter(JSON.parse(m.dataset.state), +m.dataset.size)));
+
+// Dock banner
+const dock = [
+  ["Claude", "Claude.svg", { short: 46, weekly: 72, shortH: 3.1, weeklyD: 4.2 }],
+  ["Codex", "Codex.svg", { short: 88, weekly: 64, shortH: 4.4, weeklyD: 2.3 }],
+];
+for (const [name, logo, state] of dock) {
+  const item = document.createElement("div"); item.className = "item";
+  item.innerHTML = `<div class="name"><img src="../../../extension/CodeUsageMonitor/Assets/${logo}" alt="">${name}</div>`;
+  const wrap = document.createElement("div"); wrap.style.height = "44px"; wrap.style.display = "flex"; wrap.style.alignItems = "center";
+  wrap.appendChild(meter(state, 23)); item.appendChild(wrap); document.getElementById("dockbar").appendChild(item);
+}
+
+// Colour row
+[[95, "5 cells", "green"], [75, "4 cells", "lime"], [55, "3 cells", "yellow"], [35, "2 cells", "orange"], [15, "1 cell", "red (zoomed)"]].forEach(([left, cells, name]) => {
+  const c = document.createElement("div"); c.className = "cell"; c.style.padding = "20px";
+  const m = document.createElement("div"); m.appendChild(meter({ short: left, weekly: 70 }, 31)); c.appendChild(m);
+  c.insertAdjacentHTML("beforeend", `<div class="caption">${left}% left<small>${cells} · ${name}</small></div>`);
+  document.getElementById("colorRow").appendChild(c);
+});
+
+// Anatomy: labelled meter. Geometry in em of the meter font: cell pitch 1, cell width 0.925,
+// top row y 0–0.925, bottom row y 1.0–1.925, strip height 0.148 on the outer edges.
+const stage = document.querySelector("#anatomy .stage");
+const [mx, my] = stage.dataset.meterAt.split(",").map(Number), N = +stage.dataset.size;
+const state = JSON.parse(stage.dataset.state);
+const prof = document.createElement("div"); prof.className = "profile"; prof.style.cssText = `position:absolute;left:${mx - 165}px;top:${my + N * 0.75}px;font-size:22px`;
+prof.innerHTML = `<img src="../../../extension/CodeUsageMonitor/Assets/Claude.svg" alt="">Claude`; stage.appendChild(prof);
+const m = meter(state, N); m.style.cssText += `;position:absolute;left:${mx}px;top:${my}px`; stage.appendChild(m);
+const P = (x, y) => [mx + x * N, my + y * N];
+const notes = [
+  // [target em x, y, label x, y, html, class]
+  [-2.0, 1.15, 40, 250, "<b>Profile</b><small>Provider logo and account name</small>"],
+  [0.5, 0.06, 110, 10, "<b class='bluetxt'>5-hour cooldown</b><small>Time until reset · 1 cell = 1 hour</small>", "blue"],
+  [2.2, 0.5, 660, 6, "<b>5-hour allowance left</b><small>Fills continuously · 1 cell = 20%</small>"],
+  [4.45, 0.5, 860, 96, "<b>Empty cell</b><small>Allowance already used</small>"],
+  [3.3, 1.45, 860, 186, "<b>Weekly allowance left</b><small>Always white</small>"],
+  [1.0, 1.87, 600, 282, "<b class='bluetxt'>Weekly cooldown</b><small>Time until reset · 1 cell = 1 day</small>", "blue"],
+];
+const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.classList.add("leaders"); stage.appendChild(svg);
+for (const [tx, ty, lx, ly, html, cls] of notes) {
+  const l = document.createElement("div"); l.className = "label " + (cls || ""); l.style.left = lx + "px"; l.style.top = ly + "px"; l.innerHTML = html; stage.appendChild(l);
+  const [px, py] = P(tx, ty), r = l.getBoundingClientRect(), s = stage.getBoundingClientRect();
+  const ax = lx + (lx > px ? 0 : r.width) + (lx > px ? -10 : 10), ay = ly + 11;
+  svg.insertAdjacentHTML("beforeend", `<polyline points="${ax},${ay} ${px},${ay} ${px},${py}" fill="none" stroke="${cls ? "#4d7fb3" : "var(--leader)"}" stroke-width="1.4"/><circle cx="${px}" cy="${py}" r="4" fill="${cls ? "var(--blue)" : "var(--text)"}" stroke="#141419" stroke-width="2"/>`);
+}
+document.querySelectorAll(".bluetxt").forEach(b => b.style.color = "var(--blue)");
+
+// render.py: show a single panel when the URL hash names one.
+if (location.hash) document.querySelectorAll(".panel").forEach(p => { if ("#" + p.id !== location.hash) p.style.display = "none"; });
+</script>
+</body>
+</html>

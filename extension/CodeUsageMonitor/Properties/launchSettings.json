@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "CodeUsageMonitor (Package)": {
+      "commandName": "MsixPackage",
+      "doNotLaunchApp": true
+    },
+    "CodeUsageMonitor (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
