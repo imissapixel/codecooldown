@@ -9,8 +9,9 @@ subscription allowance, read from the CLIs you already run in WSL. A live dock b
 puts both limit windows (5-hour and weekly) at the top of your screen; the palette
 command opens details, per-profile refresh and configuration.
 
-Read-only by design: it never signs in, never sends model requests, and your
-credentials never leave WSL.
+It never sends model requests or opens an interactive sign-in. Expired Claude
+access tokens renew automatically using the saved refresh token. Credentials
+stay inside WSL.
 
 ## Reading the meter
 
@@ -55,6 +56,12 @@ before changing them.
 Open Command Palette and run **Code Cooldown**, or pin **Code Cooldown HUD** from the dock
 settings.
 
+To update an existing installation, pull the latest source and rerun
+`.\scripts\build.ps1 -Test` followed by `install.ps1` with the same distribution
+and Linux user. Existing profiles and cached readings are preserved. Replace
+`Ubuntu` with your distribution's name; no developer-specific home directory or
+account details are required.
+
 ## Configure
 
 On first install the helper looks for these accounts. It checks whether credential
@@ -75,16 +82,35 @@ Settings and cached readings live only on your machine, in
 `%LOCALAPPDATA%\CodeUsageMonitor`, readable by your Windows user alone. They are not
 part of this repository.
 
+### Automatic Claude token renewal
+
+Renewal works with each profile's own Claude Code OAuth credential file and saved
+refresh token, including separate accounts and custom credential paths. Nothing
+needs to run in Claude Code for an expired token to renew. If a refresh token is
+missing or revoked, sign in once using the matching CLI account, then refresh the
+meter. Codex tokens are not renewed by this feature.
+
+With the default **Start WSL on open** setting off, background updates wait until
+the selected distribution is running. A manual meter refresh can start it.
+
 ## Privacy and security
 
 - Credentials stay in WSL. The helper sends Windows only normalised numbers:
   percentages, reset times and status words. No tokens, emails or raw responses.
-- The helper calls only the two fixed usage endpoints, refuses HTTP redirects,
-  never executes shell commands, and never refreshes or changes your login.
+- The helper calls only the two fixed usage endpoints and Claude's fixed OAuth
+  token endpoint. It refuses HTTP redirects and never executes shell commands.
+- Claude renewal uses the CLI's credential locks, preserves account metadata and
+  saves rotated tokens atomically with owner-only access. Expiry detected locally
+  or by the usage endpoint triggers at most one renewal and usage retry per fetch.
+  A missing or revoked refresh token still requires signing in through that CLI.
+  Codex credentials are read only.
 - `wsl.exe` receives its arguments as a list, not through a shell. Requests and
   responses are size-bounded and time-limited.
 - **Copy sanitized diagnostics** shares status and timestamps only, with hashed
   profile references.
+- The OAuth client ID in the source identifies the public Claude Code application,
+  not a user's account. Tests use synthetic credentials; no user credentials,
+  account IDs, emails or usage-cache files are bundled in the repository.
 
 The usage endpoints are unofficial and may change. A changed response shows as
 "Unsupported response", never as invented numbers.
@@ -94,6 +120,9 @@ The usage endpoints are unofficial and may change. A changed response shows as
 ```bash
 bash scripts/test.sh                       # helper tests (WSL)
 ```
+
+Helper tests use temporary credential files and mocked provider responses; they
+need no real account or sign-in. The redirect test uses a local loopback server.
 
 ```powershell
 .\scripts\build.ps1 -Test                  # extension tests

@@ -53,8 +53,12 @@ refresh cannot restore deleted readings. Existing detail pages handle deletion s
 canonical-source single flight, persisted normalized readings, transient
 jitter/backoff, Retry-After, and stale fallback. Configuration fingerprints prevent
 a changed credential mapping from displaying the old
-account's data. Subscription credential revisions use file identity/mtime/size, not
-credential contents, to detect an externally refreshed login.
+account's data. Subscription credential revisions hash the adapter version and
+file identity/mtime/size, not credential contents. This detects externally renewed
+logins and lets an adapter upgrade retry a previously rejected credential source.
+Fetch responses include the final revision after renewal, including on failure,
+so rotated credentials do not cause repeated rejected requests. Source locks use
+canonical identity across revisions; caches share both the initial and final revision.
 
 `WslTransport` invokes the system `wsl.exe` with `ProcessStartInfo.ArgumentList`, an
 explicit distribution and optional Linux user. Runtime commands are always:
@@ -71,8 +75,22 @@ tests verify that an abandoned Linux helper exits on cancellation.
 
 The helper has a 110-second process deadline and 18-second HTTP timeouts. HTTP
 redirects are refused so authorization headers cannot be forwarded to another
-endpoint. Only the two fixed subscription usage URLs are allowed. The helper never
-executes commands.
+endpoint. Only the two fixed subscription usage URLs and
+`https://platform.claude.com/v1/oauth/token` are allowed. The helper never executes
+commands or makes model requests.
+
+Claude access tokens renew when local expiry is reached, or once when the usage
+endpoint rejects authentication. The helper exchanges the saved refresh token,
+preserves existing account metadata, writes rotated credentials to a private
+temporary file, flushes it and atomically replaces the canonical credential file.
+Symlinked sources stay symlinks. Renewal holds Claude Code's current
+`.oauth_refresh.lock` and legacy configuration-directory `.lock` directories,
+updates their timestamps every five seconds, waits at most ten seconds for live
+locks and reclaims only empty locks older than sixty seconds. Credentials are
+read again under the lock, and external login changes are not overwritten.
+Renewal failures are sanitized, preserve original credentials, and use the same
+Retry-After/backoff as usage failures. Missing or rejected refresh tokens require
+CLI sign-in. Codex credential handling remains read only.
 
 ## Protocol v1
 

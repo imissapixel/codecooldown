@@ -33,15 +33,15 @@ class SubscriptionTests(unittest.TestCase):
         self.assertEqual(r["measurements"][0]["value"], 0)
         self.assertIsNone(r["measurements"][0]["reset_at"])
 
-    def test_expired_access_token_is_not_a_logged_out_account(self):
+    def test_expired_access_token_without_refresh_token_requires_login(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "auth.json"
-            p.write_text(json.dumps({"claudeAiOauth": {"accessToken": CANARY, "refreshToken": CANARY, "expiresAt": 1}}))
+            p.write_text(json.dumps({"claudeAiOauth": {"accessToken": CANARY, "expiresAt": 1}}))
             before = p.read_bytes()
             with patch.object(subscriptions, "http_json") as http:
                 r = handle({"version": 1, "operation": "fetch", "profile": profile(auth_path=str(p))})
-            self.assertEqual(r["status"], "token_expired"); http.assert_not_called()
-            self.assertIn("login may still be valid", r["error"])
+            self.assertEqual(r["status"], "login_required"); http.assert_not_called()
+            self.assertIn("no refresh token", r["error"])
             self.assertEqual(p.read_bytes(), before)
             self.assertNotIn(CANARY, json.dumps(r))
 
@@ -204,6 +204,16 @@ class BoundaryTests(unittest.TestCase):
             self.assertNotEqual(before["source_revision"], after["source_revision"])
             self.assertEqual(before["source_id"], after["source_id"])
             self.assertNotIn(CANARY, json.dumps([before, after]))
+
+    def test_adapter_upgrade_retries_previously_expired_credentials(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "auth.json"; p.write_text(json.dumps({"token": CANARY}))
+            request = {"version": 1, "operation": "validate", "profile": profile(auth_path=str(p))}
+            with patch("code_usage_monitor.contracts.VERSION", "0.1.0"):
+                before = handle(request)
+            after = handle(request)
+            self.assertNotEqual(before["source_revision"], after["source_revision"])
+            self.assertEqual(before["source_id"], after["source_id"])
 
 
 if __name__ == "__main__":

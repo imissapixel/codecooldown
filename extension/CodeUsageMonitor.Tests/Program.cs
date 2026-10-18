@@ -179,6 +179,36 @@ await Test("expired token recovery bypasses retry delay without repeating reject
     await service.RefreshAsync(p, false);
     Check(fake.Fetches == 2 && service.Status(p) == "ready");
 });
+await Test("renewed credential revision prevents repeated rejected renewals", async () =>
+{
+    var fake = new FakeTransport { Status = "login_required", Revision = "expired", RevisionAfterFetch = "renewed" };
+    var store = TempStore(); var p = P();
+    using (var first = new UsageService(store, fake))
+    {
+        await first.RefreshAsync(p, true);
+        Check(first.Entry(p)?.SourceRevision == "renewed");
+    }
+    using var service = new UsageService(store, fake);
+    await service.RefreshAsync(p, false);
+    Check(fake.Fetches == 1 && service.Entry(p)?.LastAttempt?.Status == "login_required");
+});
+await Test("aliases reuse a source cache after credential rotation", async () =>
+{
+    var fake = new FakeTransport { Revision = "expired", RevisionAfterFetch = "renewed" };
+    var store = TempStore(); var p = P(); var alias = p with { Id = "alias" };
+    store.Write("profiles.json", new Configuration { Profiles = [p, alias] });
+    using var service = new UsageService(store, fake);
+    await service.RefreshAsync(p, true);
+    await service.RefreshAsync(alias, true);
+    Check(fake.Fetches == 1 && service.Entry(alias)?.SourceRevision == "renewed" && service.Status(alias) == "ready");
+});
+await Test("invalid post-fetch credential revision is rejected", async () =>
+{
+    var fake = new FakeTransport { RevisionAfterFetch = new string('x', 129) };
+    using var service = new UsageService(TempStore(), fake); var p = P();
+    await service.RefreshAsync(p, true);
+    Check(service.Entry(p)?.LastAttempt?.Status == "unsupported_response" && service.Entry(p)?.LastSuccess is null);
+});
 await Test("search includes provider and distro; empty search has recovery", () =>
 {
     using var service = new UsageService(TempStore(), new FakeTransport()); var page = new OverviewPage(service);
@@ -539,6 +569,7 @@ internal sealed class FakeTransport : IUsageTransport
     internal string Status = "ready";
     internal bool Running = true;
     internal string Revision = "fixture";
+    internal string? RevisionAfterFetch;
     internal TaskCompletionSource? FetchStarted;
     internal Task? PauseFetch;
     public Task<bool> IsRunningAsync(Profile p, CancellationToken token) => Task.FromResult(Running);
@@ -549,9 +580,13 @@ internal sealed class FakeTransport : IUsageTransport
         if (PauseFetch is not null) await PauseFetch.WaitAsync(token);
         await Task.Delay(20, token);
         var measurements = new List<Measurement> { new() { Kind = "allowance_used", Label = "Reported allowance", Value = 90, Unit = "percent" } };
-        return JsonSerializer.SerializeToElement(new Reading { ProfileId = p.Id, Provider = p.Provider, SourceId = "fixture-source", Status = Status,
+        if (RevisionAfterFetch is not null) Revision = RevisionAfterFetch;
+        var reading = new Reading { ProfileId = p.Id, Provider = p.Provider, SourceId = "fixture-source", Status = Status,
             Error = Status == "ready" ? null : "Sanitized fixture failure", RetryAfterSeconds = Status == "rate_limited" ? 300 : null,
-            Measurements = Status == "ready" ? measurements : [] }, Json.Options);
+            Measurements = Status == "ready" ? measurements : [] };
+        var response = JsonSerializer.SerializeToElement(reading, Json.Options).Deserialize<Dictionary<string, JsonElement>>()!;
+        response["source_revision"] = JsonSerializer.SerializeToElement(Revision);
+        return JsonSerializer.SerializeToElement(response);
     }
 }
 

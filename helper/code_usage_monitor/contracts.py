@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import VERSION
 PROVIDERS = {"claude", "codex"}
 STATUSES = {"ready", "login_required", "token_expired", "permission_denied", "setup_required",
             "rate_limited", "network_error", "unsupported_response", "wsl_unavailable"}
@@ -74,6 +75,14 @@ def source_id(p: dict) -> str:
     return p["provider"] + ":" + digest(str(Path(p["auth_path"]).resolve()))
 
 
+def source_revision(p: dict) -> str:
+    try:
+        info = Path(p["auth_path"]).stat()
+        return digest(f"{VERSION}:{info.st_dev}:{info.st_ino}:{info.st_mtime_ns}:{info.st_size}")
+    except OSError:
+        return "missing"
+
+
 def measurement(kind: str, label: str, value, unit: str, scope: str, provenance: str,
                 *, start=None, end=None, data_at=None, reset=None, duration=None,
                 attribution="credential", currency=None) -> dict:
@@ -85,7 +94,7 @@ def measurement(kind: str, label: str, value, unit: str, scope: str, provenance:
 
 
 def result(p: dict, measurements: list, *, notices=None, plan=None) -> dict:
-    return {"version": 1, "adapter_version": "0.1.0", "profile_id": p["id"],
+    return {"version": 1, "adapter_version": VERSION, "profile_id": p["id"],
             "source_id": source_id(p), "provider": p["provider"], "status": "ready",
             "fetched_at": utcnow(), "measurements": measurements, "notices": notices or [],
             "plan": plan, "error": None, "retry_after_seconds": None}

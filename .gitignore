@@ -4,3 +4,14 @@
 *.pyc
 artifacts/
 .vs/
+
+# Local credentials, account configuration, caches and signing keys.
+.credentials.json
+auth.json
+profiles.json
+usage-cache.json
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12

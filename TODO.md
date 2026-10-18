@@ -15,7 +15,8 @@ Windows (PowerShell) is not supported.
   First confirm where the Windows builds store credentials (file or Credential
   Manager).
 - Extend discovery to Windows-side `.claude*` and `.codex*` folders.
-- Keep the same guarantees: read-only, fixed endpoints, no redirects, no
-  credential values in caches or diagnostics.
+- Keep the same guarantees: read-only usage requests, automatic Claude OAuth
+  renewal with credential locking and atomic saves, fixed endpoints, no redirects,
+  no credential values in caches or diagnostics.
 - Interim workaround (untested): a WSL profile pointing at
   `/mnt/c/Users/<you>/.claude/.credentials.json`.

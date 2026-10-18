@@ -16,7 +16,7 @@ opening a browser. Several accounts per provider stay independent.
 
 ## Stack and constraints
 C#/.NET Command Palette SDK with native list, detail and form surfaces, plus a
-read-only Python helper in WSL. No web frontend, daemon, telemetry, transcript
+Python usage helper in WSL with automatic Claude OAuth renewal. No web frontend, daemon, telemetry, transcript
 parsing, inference-based refresh, launcher modification, or credential transfer
 to Windows. Configuration and caches live in the user's local app data, never in
 the repository.

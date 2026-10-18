@@ -5,10 +5,9 @@ from __future__ import annotations
 import json
 import signal
 import sys
-from pathlib import Path
 
 from code_usage_monitor import VERSION
-from code_usage_monitor.contracts import UsageError, digest, source_id, utcnow, validate_profile
+from code_usage_monitor.contracts import UsageError, source_id, source_revision, utcnow, validate_profile
 from code_usage_monitor.discovery import discover
 from code_usage_monitor.subscriptions import claude, codex
 
@@ -26,20 +25,17 @@ def handle(request) -> dict:
                     "status": "ready", "fetched_at": utcnow()}
         p = validate_profile(request.get("profile"))
         if operation == "validate":
-            try:
-                stat = Path(p["auth_path"]).stat()
-                revision = digest(f"{stat.st_dev}:{stat.st_ino}:{stat.st_mtime_ns}:{stat.st_size}")
-            except OSError:
-                revision = "missing"
-            return {"version": 1, "profile_id": p["id"], "source_id": source_id(p), "source_revision": revision, "status": "ready"}
+            # Include adapter version so an upgrade can recover a cached auth error.
+            return {"version": 1, "profile_id": p["id"], "source_id": source_id(p),
+                    "source_revision": source_revision(p), "status": "ready"}
         if operation != "fetch":
             raise UsageError("unsupported_response", "Unsupported helper operation.")
-        if p["provider"] == "claude":
-            return claude(p)
-        return codex(p)
+        reading = claude(p) if p["provider"] == "claude" else codex(p)
+        return {**reading, "source_revision": source_revision(p)}
     except UsageError as e:
         return {"version": 1, "adapter_version": VERSION, "profile_id": p["id"] if p else None,
                 "provider": p["provider"] if p else None, "source_id": source_id(p) if p else None,
+                "source_revision": source_revision(p) if p else None,
                 "status": e.status, "fetched_at": utcnow(), "measurements": [], "notices": [],
                 "error": e.message, "retry_after_seconds": e.retry_after}
     except Exception:

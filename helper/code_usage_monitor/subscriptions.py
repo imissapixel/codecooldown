@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import time
-
+from .auth import claude_oauth, expired, renew_claude
 from .contracts import UsageError, measurement, number, result, text, timestamp
 from .io import http_json, read_json
 
@@ -36,16 +35,26 @@ def parse_claude(p: dict, data: dict) -> dict:
 
 def claude(p: dict) -> dict:
     auth = read_json(p["auth_path"])
-    oauth = auth.get("claudeAiOauth", {})
-    token = oauth.get("accessToken") if isinstance(oauth, dict) else None
-    if not isinstance(token, str) or not token.strip():
-        raise UsageError("login_required", "No OAuth token at this Claude source. Sign in using this profile's CLI.")
-    expires_at = number(oauth.get("expiresAt"))
-    if expires_at is not None and expires_at <= time.time() * 1000:
-        raise UsageError("token_expired", "The saved access token expired; your Claude CLI login may still be valid. Use that CLI to renew it, then refresh usage.")
-    return parse_claude(p, http_json("https://api.anthropic.com/api/oauth/usage", {
-        "Authorization": "Bearer " + token, "anthropic-beta": "oauth-2025-04-20",
-        "User-Agent": "codecooldown/0.1.0", "Accept": "application/json"}))
+    oauth = claude_oauth(auth)
+    renewed = expired(oauth)
+    if renewed:
+        oauth = renew_claude(p["auth_path"], oauth["accessToken"])
+
+    def fetch(token):
+        return http_json("https://api.anthropic.com/api/oauth/usage", {
+            "Authorization": "Bearer " + token, "anthropic-beta": "oauth-2025-04-20",
+            "User-Agent": "codecooldown/0.2.0", "Accept": "application/json"})
+
+    try:
+        data = fetch(oauth["accessToken"])
+    except UsageError as error:
+        if renewed or error.status not in {"token_expired", "login_required"}:
+            raise
+        if not oauth.get("refreshToken"):
+            raise
+        oauth = renew_claude(p["auth_path"], oauth["accessToken"])
+        data = fetch(oauth["accessToken"])
+    return parse_claude(p, data)
 
 
 def parse_codex(p: dict, data: dict) -> dict:

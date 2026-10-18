@@ -1,3 +1,3 @@
-"""Read-only usage adapters. No inference or login operations."""
+"""Usage adapters with Claude credential renewal. No inference or interactive login."""
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"

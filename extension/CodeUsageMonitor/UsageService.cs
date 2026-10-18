@@ -171,8 +171,10 @@ internal sealed class UsageService : IDisposable
                 SetEntry(p, old with { NextAttempt = DateTimeOffset.UtcNow.AddSeconds(p.RefreshSeconds) });
                 return;
             }
-            var sourceKey = p.Provider + "|" + p.Distro + "|" + p.User + "|" + source + "|" + revision;
-            var sourceLock = _sourceLocks.GetOrAdd(sourceKey, _ => new(1));
+            var sourceIdentity = p.Provider + "|" + p.Distro + "|" + p.User + "|" + source;
+            var sourceKey = sourceIdentity + "|" + revision;
+            // Credential renewal changes revision while a fetch holds this lock.
+            var sourceLock = _sourceLocks.GetOrAdd(sourceIdentity, _ => new(1));
             await sourceLock.WaitAsync(_lifetime.Token);
             try
             {
@@ -188,13 +190,22 @@ internal sealed class UsageService : IDisposable
                 var response = await _transport.RequestAsync(p, "fetch", _lifetime.Token);
                 var reading = response.Deserialize<Reading>(Json.Options) ?? throw new InvalidDataException();
                 ValidateReading(p, reading);
+                if (response.TryGetProperty("source_revision", out var fetchedRevision))
+                {
+                    revision = fetchedRevision.GetString() ?? throw new InvalidDataException();
+                    if (revision.Length > 128 || revision.Any(char.IsControl)) throw new InvalidDataException();
+                }
                 Record(p, reading, old);
                 lock (_saveGate)
                 {
                     if (Entry(p) is { } updated)
                     {
                         updated = updated with { SourceRevision = revision };
-                        if (SetEntry(p, updated)) _sources[sourceKey] = updated;
+                        if (SetEntry(p, updated))
+                        {
+                            _sources[sourceKey] = updated;
+                            _sources[sourceIdentity + "|" + revision] = updated;
+                        }
                         Persist();
                     }
                 }
@@ -205,7 +216,7 @@ internal sealed class UsageService : IDisposable
         {
             if (!_lifetime.IsCancellationRequested) Record(p, new() { ProfileId = p.Id, Provider = p.Provider, Status = "network_error", Error = "The WSL helper timed out. Check the distribution and CLI access, then refresh." }, old);
         }
-        catch (Exception e) when (e is IOException or System.ComponentModel.Win32Exception or JsonException or InvalidOperationException or ArgumentException or KeyNotFoundException or FormatException)
+        catch (Exception e) when (e is IOException or InvalidDataException or System.ComponentModel.Win32Exception or JsonException or InvalidOperationException or ArgumentException or KeyNotFoundException or FormatException)
         {
             Record(p, new() { ProfileId = p.Id, Provider = p.Provider, Status = e is JsonException or InvalidDataException or KeyNotFoundException or FormatException ? "unsupported_response" : "wsl_unavailable",
                 Error = "Cannot read usage. Check the WSL distribution, Linux user, Python 3.11+, and helper installation." }, old);
