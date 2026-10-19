@@ -31,8 +31,9 @@ ordinary whitespace, which would clip it.
 - Final-20% zoom: the 5-hour row becomes one continuous red bar.
 - Exhausted windows: one centred blue countdown row (cells filled per hour or day),
   with a continuous final-day bar for weekly.
-- Unknown data with no previous reading shows question marks. Stale data keeps
-  its last reading.
+- Unknown data with no previous reading shows question marks. Saved usage stays
+  unchanged until its recorded reset passes, then shows estimated full allowance,
+  assuming no usage since reset. Tooltips label estimates and the capture time.
 - Tooltips: profile name, then `5h: 19% left · resets in 2h8m` and the weekly
   equivalent. A status line is added only when something is wrong.
 - No dock buttons. Refresh, Refresh all and Edit are in each item's context menu.

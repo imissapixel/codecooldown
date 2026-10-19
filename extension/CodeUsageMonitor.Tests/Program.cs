@@ -106,6 +106,86 @@ await Test("failure preserves stale successful measurements", async () =>
     Check(next.IsStale(p) && next.Entry(p)?.LastSuccess?.Measurements[0].Value == 90);
     Check(next.Entry(p)?.LastAttempt?.Status == "network_error");
 });
+await Test("elapsed resets restore estimated allowance independently without changing the capture", () =>
+{
+    var captured = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+    var reading = Success(P()) with { FetchedAt = captured, Measurements = [
+        new() { Kind = "allowance_used", Label = "5h", Unit = "percent", Value = 100, WindowSeconds = 18000, ResetAt = captured.AddHours(1) },
+        new() { Kind = "allowance_used", Label = "Weekly", Unit = "percent", Value = 90, WindowSeconds = 604800, ResetAt = captured.AddDays(2) }] };
+    var before = AllowanceMeter.Estimate(reading, captured.AddMinutes(59))!;
+    Check(before.Measurements[0].Value == 100 && before.Measurements.All(m => m.EstimatedResetAt is null));
+    var atReset = AllowanceMeter.Estimate(reading, captured.AddHours(1))!;
+    Check(atReset.Measurements[0] is { Value: 0, ResetAt: null, EstimatedResetAt: not null });
+    Check(atReset.Measurements[1] == reading.Measurements[1] && atReset.FetchedAt == captured);
+    Check(reading.Measurements[0].Value == 100 && reading.Measurements[0].ResetAt == captured.AddHours(1));
+    var later = AllowanceMeter.Estimate(reading, captured.AddDays(20))!;
+    Check(later.Measurements.All(m => m.Value == 0 && m.ResetAt is null && m.EstimatedResetAt is not null));
+    Check(MeterGlyph.Create(later, true, "ready", captured.AddDays(20)) is { ShortCells: 5, WeeklyCells: 5, ShortOnly: false, WeeklyOnly: false });
+    Check(MeterGlyph.Create(later, false, "ready", captured.AddDays(20)) is { ShortCells: 0, WeeklyCells: 0 });
+    var tooltip = UsageHud.HudSubtitle(P(), reading, "stale", true, captured.AddHours(1));
+    Check(tooltip.Contains("Estimated · assumes no usage since reset", StringComparison.Ordinal)
+        && tooltip.Contains("5h: 100% left (estimated)", StringComparison.Ordinal)
+        && tooltip.Contains("Weekly: 10% left", StringComparison.Ordinal));
+    Check(Presentation.Value(atReset.Measurements[0], false) == "0% used (estimated)");
+    Check(AllowanceMeter.Estimate(later, captured.AddDays(21))!.Measurements.SequenceEqual(later.Measurements));
+    // A successful fetch can itself carry an elapsed reset while the provider lags.
+    var lagged = reading with { FetchedAt = captured.AddHours(2) };
+    Check(AllowanceMeter.Estimate(lagged, captured.AddHours(2))!.Measurements[0].EstimatedResetAt == captured.AddHours(1));
+    Check(AllowanceMeter.Estimate(reading, captured.AddHours(1).ToOffset(TimeSpan.FromHours(-7)))!.Measurements[0].Value == 0);
+    return Task.CompletedTask;
+});
+await Test("estimates preserve unknown values, other balances and captures from the future", () =>
+{
+    var now = DateTimeOffset.UtcNow;
+    var reading = Success(P()) with { FetchedAt = now.AddHours(-1), Measurements = [
+        new() { Kind = "allowance_used", Unit = "percent", Value = null, ResetAt = now.AddMinutes(-1) },
+        new() { Kind = "allowance_used", Unit = "percent", Value = 95 },
+        new() { Kind = "credits", Unit = "credits", Value = 20, ResetAt = now.AddMinutes(-1) },
+        new() { Kind = "extra_allowance_used", Unit = "percent", Value = 50, ResetAt = now.AddMinutes(-1) },
+        new() { Kind = "allowance_used", Unit = "percent", Value = 90, ResetAt = now.AddMinutes(-1), FetchedAt = now.AddHours(1) }] };
+    Check(AllowanceMeter.Estimate(reading, now)!.Measurements.SequenceEqual(reading.Measurements));
+    Check(AllowanceMeter.Estimate(reading with { FetchedAt = now.AddHours(1) }, now)!.Measurements.SequenceEqual(reading.Measurements));
+    Check(AllowanceMeter.Estimate(null, now) is null);
+    return Task.CompletedTask;
+});
+await Test("stale estimates agree across HUD, overview and details while raw cache survives restart", async () =>
+{
+    var fake = new FakeTransport(); var store = TempStore(); var p = P();
+    store.Write("profiles.json", new Configuration { Profiles = [p] });
+    using (var initial = new UsageService(store, fake)) await initial.RefreshAsync(p, true);
+    var cache = store.Read<Dictionary<string, CacheEntry>>("usage-cache.json")!;
+    var captured = DateTimeOffset.UtcNow.AddDays(-10);
+    var reading = Success(p) with { FetchedAt = captured, Measurements = [
+        new() { Kind = "allowance_used", Label = "5h", Unit = "percent", Value = 100, WindowSeconds = 18000, ResetAt = captured.AddHours(1) },
+        new() { Kind = "allowance_used", Label = "Weekly", Unit = "percent", Value = 100, WindowSeconds = 604800, ResetAt = captured.AddDays(2) }] };
+    cache[p.Id] = cache[p.Id] with { LastSuccess = reading,
+        LastAttempt = reading with { Status = "rate_limited", RetryAfterSeconds = 3600 }, NextAttempt = DateTimeOffset.UtcNow.AddHours(1) };
+    store.Write("usage-cache.json", cache);
+    var original = File.ReadAllText(Path.Combine(store.DirectoryPath, "usage-cache.json"));
+    using var service = new UsageService(store, fake);
+    using var hud = new UsageHud(service);
+    var rows = hud.GetItems();
+    Check(rows[1].Subtitle.Contains("100% left (estimated)", StringComparison.Ordinal));
+    var visual = MeterGlyph.Create(AllowanceMeter.Estimate(reading), true, "ready");
+    Check(rows[1].Icon!.Dark is FontIconData font && font.Icon == visual.Glyph);
+    var overview = new OverviewPage(service).GetItems()[0];
+    Check(overview.Subtitle.Contains("100% remaining (estimated)", StringComparison.Ordinal));
+    Check(overview.Tags.Any(t => t.Text == "Estimated") && overview.Tags.All(t => t.Text != "Allowance low"));
+    var details = Presentation.Details(p, service);
+    Check(details.Contains("Assumes no usage since", StringComparison.Ordinal) && details.Contains("Last reported: 0% remaining", StringComparison.Ordinal));
+    await service.RefreshAsync(p, true);
+    Check(fake.Fetches == 1 && service.Status(p) == "stale");
+    Check(service.Entry(p)!.LastSuccess!.Measurements.All(m => m.Value == 100));
+    Check(File.ReadAllText(Path.Combine(store.DirectoryPath, "usage-cache.json")) == original);
+    cache[p.Id] = cache[p.Id] with { NextAttempt = DateTimeOffset.UtcNow.AddSeconds(-1) };
+    store.Write("usage-cache.json", cache);
+    using var recovered = new UsageService(store, fake);
+    await recovered.RefreshAsync(p, true);
+    var fresh = recovered.Entry(p)!.LastSuccess!;
+    Check(fake.Fetches == 2 && recovered.Status(p) == "ready" && fresh.Measurements[0].Value == 90);
+    Check(AllowanceMeter.Estimate(fresh)!.Measurements.All(m => m.EstimatedResetAt is null));
+    Check(!Presentation.Details(p, recovered).Contains("Estimated allowance", StringComparison.Ordinal));
+});
 await Test("Retry-After blocks manual request storms", async () =>
 {
     var fake = new FakeTransport { Status = "rate_limited" };

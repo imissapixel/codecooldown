@@ -83,12 +83,14 @@ internal sealed partial class OverviewPage : DynamicListPage
             if (!_details.TryGetValue(p.Id, out var page)) _details[p.Id] = page = new(_service, p.Id);
             var status = _service.Status(p);
             var entry = _service.Entry(p);
+            var reading = AllowanceMeter.Estimate(entry?.LastSuccess);
             var tags = new List<ITag> { new Tag(Presentation.Status(status)) };
-            var allowances = entry?.LastSuccess?.Measurements.Where(m => m.Kind == "allowance_used" && m.Value is not null).Take(2).ToList();
+            if (reading?.Measurements.Any(m => m.EstimatedResetAt is not null) is true) tags.Add(new Tag("Estimated"));
+            var allowances = reading?.Measurements.Where(m => m.Kind == "allowance_used" && m.Value is not null).Take(2).ToList();
             if (allowances is { Count: > 0 })
                 tags.Insert(0, new Tag(string.Join(" / ", allowances.Select(m => $"{(_service.Config.ShowRemaining ? 100 - m.Value : m.Value):0.#}%")) +
                     (_service.Config.ShowRemaining ? " left" : " used")) { ToolTip = string.Join(" · ", allowances.Select(m => m.Label + ": " + Presentation.Value(m, _service.Config.ShowRemaining))) });
-            if (entry?.LastSuccess?.Measurements.Any(m => m.Kind == "allowance_used" && m.Value >= 80) is true)
+            if (reading?.Measurements.Any(m => m.Kind == "allowance_used" && m.Value >= 80) is true)
                 tags.Add(new Tag("Allowance low") { Icon = new IconInfo("\uE7BA") });
             return (IListItem)new ListItem(page)
             {

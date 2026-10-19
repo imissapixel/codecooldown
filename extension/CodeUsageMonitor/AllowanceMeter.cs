@@ -2,6 +2,20 @@ namespace CodeUsageMonitor;
 
 internal static class AllowanceMeter
 {
+    // Display-only projection. A snapshot cannot reveal usage after a reset, or
+    // when an activity-triggered next window starts. Keep the original cache intact.
+    internal static Reading? Estimate(Reading? reading, DateTimeOffset? now = null)
+    {
+        var instant = now ?? DateTimeOffset.UtcNow;
+        if (reading is null || reading.FetchedAt > instant) return reading;
+        return reading with { Measurements = reading.Measurements.Select(m =>
+            m.Kind == "allowance_used" && m.Unit == "percent"
+                && m.Value is { } used && double.IsFinite(used) && used is >= 0 and <= 100
+                && m.ResetAt is { } reset && reset <= instant && (m.FetchedAt ?? reading.FetchedAt) <= instant
+                ? m with { Value = 0, ResetAt = null, EstimatedResetAt = reset }
+                : m).ToList() };
+    }
+
     internal static Measurement?[] Windows(Reading? reading)
     {
         var all = reading?.Measurements.Where(m => m.Kind == "allowance_used").ToArray() ?? [];

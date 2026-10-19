@@ -6,7 +6,7 @@
  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
  IgnorableNamespaces="uap uap3 uap4 com rescap">
- <Identity Name="CodeUsageMonitor" Publisher="CN=CodeUsageMonitor" Version="0.1.0.0" ProcessorArchitecture="x64" />
+ <Identity Name="CodeUsageMonitor" Publisher="CN=CodeUsageMonitor" Version="0.2.0.0" ProcessorArchitecture="x64" />
  <Properties><DisplayName>Code Cooldown</DisplayName><PublisherDisplayName>Code Cooldown</PublisherDisplayName><Logo>Assets\StoreLogo.png</Logo></Properties>
  <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
  <Resources><Resource Language="en-us" /></Resources>

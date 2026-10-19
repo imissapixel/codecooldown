@@ -71,15 +71,15 @@ internal sealed partial class UsageHud : ListPage, INotifyItemsChanged, IDisposa
     private void UpdateItems(ListItem[] items, Profile p)
     {
         var entry = _service.Entry(p);
-        var reading = entry?.LastSuccess;
+        var reading = AllowanceMeter.Estimate(entry?.LastSuccess);
         var status = _service.Status(p);
         var item = items[0];
         item.Title = HudTitle(p, reading, _service.Config.ShowRemaining, status);
         // The band hides subtitles; the host still appends them to each item's tooltip.
         item.Subtitle = HudSubtitle(p, reading, status, _service.Config.ShowRemaining);
         item.Icon = ProviderIcons.For(p);
-        // A failed or slow refresh keeps drawing the last successful reading; the
-        // tooltip states its status and age.
+        // Failed or slow refreshes retain saved usage until its known reset passes.
+        // The tooltip labels estimates and preserves the capture time and status.
         var meterStatus = reading is not null ? "ready" : status;
         items[1].Title = MeterGlyph.ReservedWidth;
         items[1].Subtitle = ShortName(p) + "\n" + item.Subtitle;
@@ -100,10 +100,14 @@ internal sealed partial class UsageHud : ListPage, INotifyItemsChanged, IDisposa
     internal static string HudSubtitle(Profile p, Reading? reading, string status, bool remaining = true, DateTimeOffset? now = null)
     {
         if (reading is null) return Presentation.Status(status);
+        reading = AllowanceMeter.Estimate(reading, now)!;
         var windows = AllowanceMeter.Windows(reading);
         var lines = new[] { ("5h", windows[0]), ("Weekly", windows[1]) }
             .Where(w => w.Item2 is not null).Select(w => WindowLine(w.Item1, w.Item2!, remaining, now));
-        return string.Join("\n", (status is "ready" or "loading" ? lines : lines.Prepend(Presentation.Status(status) + " · updated " + reading.FetchedAt.ToLocalTime().ToString("t", CultureInfo.CurrentCulture))));
+        var estimated = reading.Measurements.Any(m => m.EstimatedResetAt is not null);
+        var header = (estimated ? "Estimated · assumes no usage since reset · " : "")
+            + Presentation.Status(status) + " · captured " + Presentation.Local(reading.FetchedAt);
+        return string.Join("\n", ((status is "ready" or "loading") && !estimated ? lines : lines.Prepend(header)));
     }
 
     private static string WindowLine(string name, Measurement m, bool remaining, DateTimeOffset? now)
@@ -111,6 +115,7 @@ internal sealed partial class UsageHud : ListPage, INotifyItemsChanged, IDisposa
         var amount = m.Value is not { } used || !double.IsFinite(used) ? "n/a"
             : used >= 100 ? "used up"
             : (remaining ? 100 - Math.Clamp(used, 0, 100) : Math.Clamp(used, 0, 100)).ToString("0.#", CultureInfo.CurrentCulture) + (remaining ? "% left" : "% used");
+        if (m.EstimatedResetAt is not null) amount += " (estimated)";
         return m.ResetAt is { } reset ? $"{name}: {amount} · resets in {ResetCountdown(reset, now)}" : $"{name}: {amount}";
     }
 

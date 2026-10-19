@@ -27,6 +27,12 @@ stay inside WSL.
 
 ![Tooltips show exact numbers; failed refreshes keep the last reading; question marks only before the first reading](docs/images/states.png)
 
+When a saved reset time passes, the meter estimates 100% allowance remaining for
+that window, assuming no usage since reset. Tooltips, overview and details label
+the estimate. Before reset, saved usage stays unchanged. Missing readings remain
+unknown. Estimates preserve the original capture and do not invent a next reset;
+the next successful refresh replaces them with server values.
+
 ## Requirements
 
 - Windows 11 with [PowerToys](https://github.com/microsoft/PowerToys) and Command Palette
@@ -112,8 +118,9 @@ the selected distribution is running. A manual meter refresh can start it.
   not a user's account. Tests use synthetic credentials; no user credentials,
   account IDs, emails or usage-cache files are bundled in the repository.
 
-The usage endpoints are unofficial and may change. A changed response shows as
-"Unsupported response", never as invented numbers.
+The usage endpoints are unofficial and may change. An unrecognised response shows
+as "Unsupported response". Previously captured reset times can still support the
+labelled allowance estimates described above.
 
 ## Development
 

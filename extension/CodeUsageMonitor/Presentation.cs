@@ -31,7 +31,7 @@ internal static class Presentation
         if (m.Unit == "percent")
         {
             var display = remaining && m.Kind.Contains("allowance", StringComparison.Ordinal) ? 100 - m.Value.Value : m.Value.Value;
-            return $"{display:0.#}% {(remaining ? "remaining" : "used")}";
+            return $"{display:0.#}% {(remaining ? "remaining" : "used")}" + (m.EstimatedResetAt is not null ? " (estimated)" : "");
         }
         if (m.Unit == "currency") return $"{m.Value:N2} {m.Currency}";
         return $"{m.Value:N0} {m.Unit}";
@@ -40,19 +40,22 @@ internal static class Presentation
     internal static string Summary(Profile p, CacheEntry? entry, bool remaining)
     {
         if (entry?.LastSuccess is not { } r) return entry?.LastAttempt?.Error ?? "Refresh to check usage";
-        var selected = r.Measurements.Where(m => m.Kind == "allowance_used").Take(2).ToList();
+        var selected = AllowanceMeter.Estimate(r)!.Measurements.Where(m => m.Kind == "allowance_used").Take(2).ToList();
         return string.Join(" · ", selected.Select(m => m.Label + ": " + Value(m, remaining) + (m.ResetAt is { } reset ? " · " + Relative(reset) : "")));
     }
 
     internal static string Details(Profile p, UsageService service, bool includeTitle = true)
     {
         var entry = service.Entry(p);
-        var r = entry?.LastSuccess;
+        var captured = entry?.LastSuccess;
+        var r = AllowanceMeter.Estimate(captured);
         var builder = new StringBuilder();
         if (includeTitle) builder.AppendLine(CultureInfo.CurrentCulture, $"## {Safe(p.DisplayName)}").AppendLine();
         builder.AppendLine(CultureInfo.CurrentCulture, $"**{Provider(p)} · {Status(service.Status(p))}**").AppendLine();
         if (entry?.LastAttempt?.Error is { } error) builder.AppendLine(Safe(error)).AppendLine();
-        if (service.IsStale(p)) builder.AppendLine("**Saved readings are stale.** The latest refresh did not replace the last successful values.").AppendLine();
+        if (service.IsStale(p)) builder.AppendLine("**Saved readings are stale.** A fresh server reading is not available.").AppendLine();
+        if (r?.Measurements.Any(m => m.EstimatedResetAt is not null) is true)
+            builder.AppendLine("**Estimated allowance after reset.** Assumes no usage since the recorded reset time. Actual usage and the next reset need a successful refresh. Original server readings are shown below.").AppendLine();
         if (r is not null)
         {
             foreach (var m in r.Measurements)
@@ -79,9 +82,10 @@ internal static class Presentation
             return builder.ToString();
         }
         if (r.Plan is not null) builder.AppendLine(CultureInfo.CurrentCulture, $"Plan: {Safe(r.Plan)}").AppendLine();
-        foreach (var m in r.Measurements)
+        foreach (var m in captured!.Measurements)
         {
             builder.AppendLine(CultureInfo.CurrentCulture, $"### {Safe(m.Label)}").AppendLine();
+            builder.AppendLine(CultureInfo.CurrentCulture, $"Last reported: {Value(m, service.Config.ShowRemaining)}.  ");
             if (m.ResetAt is { } reset) builder.AppendLine(CultureInfo.CurrentCulture, $"Resets {Local(reset)} ({Relative(reset)}).  ");
             if (m.WindowSeconds is { } duration) builder.AppendLine(CultureInfo.CurrentCulture, $"Reported window: {TimeSpan.FromSeconds(duration).TotalHours:g} hours.  ");
             builder.AppendLine(CultureInfo.CurrentCulture, $"Scope: {Safe(m.Scope)}  \nSource: {Safe(m.Provenance)}  \nPeriod: {Local(m.PeriodStart)} — {Local(m.PeriodEnd)}  \nProvider data timestamp: {Local(m.DataAt)}  \nCollected: {Local(m.FetchedAt)}").AppendLine();

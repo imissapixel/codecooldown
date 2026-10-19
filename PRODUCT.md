@@ -33,8 +33,9 @@ the repository.
 - An exhausted window collapses to a single centred blue countdown; weekly takes
   precedence and zooms into its final 24 hours.
 - No text in the dock. Hover tooltips carry one short line per window.
-- Failed refreshes keep the last successful reading visible, with staleness noted
-  in the tooltip.
+- Failed refreshes keep saved usage visible until its recorded reset passes, then
+  estimate full allowance assuming no usage since reset. Tooltips label estimates
+  and staleness. Original server readings stay available in details.
 - Refresh lives in context menus; the dock has no buttons.
 
 ## Design authority

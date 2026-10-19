@@ -49,6 +49,7 @@ internal sealed record Measurement
     public DateTimeOffset? FetchedAt { get; init; }
     public DateTimeOffset? DataAt { get; init; }
     public DateTimeOffset? ResetAt { get; init; }
+    [JsonIgnore] public DateTimeOffset? EstimatedResetAt { get; init; }
     public double? WindowSeconds { get; init; }
     public string Scope { get; init; } = "";
     public string Provenance { get; init; } = "";
